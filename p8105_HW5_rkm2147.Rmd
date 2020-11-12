@@ -67,17 +67,20 @@ homicide_summary_df =
 ```
 
 
-Prop test
+Prop test for Baltimore, MD
 
 ```{r}
 prop.test(
-  homicide_summary_df %>% filter(city_state == "Baltimore_MD") %>% pull(hom_unsolved), 
-  homicide_summary_df %>% filter(city_state == "Baltimore_MD") %>% pull(hom_total)) %>% 
+  homicide_summary_df %>% 
+    filter(city_state == "Baltimore_MD") %>% pull(hom_unsolved) 
+  
+ , homicide_summary_df %>% filter(city_state == "Baltimore_MD") %>% pull(hom_total)) %>% 
   broom::tidy()
 ```
 
-Try to iterate ........
 
+
+Running a prop test for each city in the data frame
 ```{r}
 results_df = 
   homicide_summary_df %>% 
@@ -91,7 +94,7 @@ results_df =
 ```
 
 
-
+A plot that shows the estimates and CIs for each city
 ```{r}
 results_df %>% 
   mutate(city_state = fct_reorder(city_state, estimate)) %>% 
