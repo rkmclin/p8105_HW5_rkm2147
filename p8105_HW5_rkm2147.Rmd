@@ -30,6 +30,99 @@ scale_fill_discrete = scale_fill_viridis_d
 # Problem 1
 
 
+Importing data
+
+```{r}
+homicide_df = read_csv(file = "./homicide-data.csv")
+```
+
+**Raw data explanation**
+
+The raw homicide data frame contains the variables: `r names(homicide_df)`. There are a total of `r nrow(homicide_df)` contained within. Upon first glance it appears that we will need to tidy the variable concerning the reported data of the incident that occurred. Data collected for this frame was by The Washington Post,  it gathered information on homicides in 50 large U.S. cities
+
+
+Create city_state variable & resolved variable
+```{r}
+tidy_homicide_df = 
+homicide_df %>% 
+  mutate(
+    city_state = str_c(city, state, sep = "_"),
+    resolved = case_when(
+      disposition == "Closed without arrest" ~ "unsolved",
+      disposition == "Open/No arrest"        ~ "unsolved",
+      disposition == "Closed by arrest"      ~ "solved",
+    ))
+```
 
 
 
+```{r}
+homicide_summary_df = 
+  tidy_homicide_df %>% 
+  group_by(city_state) %>% 
+  summarize(
+    hom_total = n(),
+    hom_unsolved = sum(resolved == "unsolved")
+  )
+```
+
+
+Prop test
+
+```{r}
+prop.test(
+  homicide_summary_df %>% filter(city_state == "Baltimore_MD") %>% pull(hom_unsolved), 
+  homicide_summary_df %>% filter(city_state == "Baltimore_MD") %>% pull(hom_total)) %>% 
+  broom::tidy()
+```
+
+Try to iterate ........
+
+```{r}
+results_df = 
+  homicide_summary_df %>% 
+  mutate(
+    prop_tests = map2(.x = hom_unsolved, .y = hom_total, ~prop.test(x = .x, n = .y)),
+    tidy_tests = map(.x = prop_tests, ~broom::tidy(.x))
+  ) %>% 
+  select(-prop_tests) %>% 
+  unnest(tidy_tests) %>% 
+  select(city_state, estimate, conf.low, conf.high)
+```
+
+
+
+```{r}
+results_df %>% 
+  mutate(city_state = fct_reorder(city_state, estimate)) %>% 
+  ggplot(aes(x = city_state, y = estimate)) +
+  geom_point() + 
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high)) + 
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+```
+
+
+
+```{r, error = TRUE}
+city_prop_test = function(df) {
+  
+  n_unsovled ...
+  n_total ... 
+  
+  prop.test(.....)
+  
+}
+homicide_df = 
+  read_csv("data/homicide-data.csv") %>% 
+  mutate(
+    city_state = str_c(city, state, sep = "_"),
+    resolved = case_when(
+      disposition == "Closed without arrest" ~ "unsolved",
+      disposition == "Open/No arrest"        ~ "unsolved",
+      disposition == "Closed by arrest"      ~ "solved",
+    )
+  ) %>% 
+  select(city_state, resolved) %>% 
+  filter(city_state != "Tulsa_AL") %>% 
+  nest(data = resolved)
+```
