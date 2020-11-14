@@ -142,12 +142,21 @@ path = str_replace(path, ".csv", "")
     week_1:week_8,
     names_to = "week",
     values_to = "value"
-  ) 
+  ) %>% 
+  mutate(
+    treatment = as.factor(treatment),
+    id = as.factor(id),
+    week = as.factor(week)
+  )
 ```
 
 
-take a spaghetti plot showing observations on each subject over time, and comment on differences between groups.
-```{r}
+make a spaghetti plot showing observations on each subject over time, and comment on differences between groups.
 
+need to figure out how to compare control vs treatment
+```{r}
+tidy_df %>% 
+ 
+  ggplot(aes( x = week, y = value, group = id, color = id)) + geom_line() +  facet_grid(rows = vars(treatment)) 
 ```
 
