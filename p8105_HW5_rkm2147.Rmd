@@ -160,3 +160,56 @@ tidy_df %>%
   ggplot(aes( x = week, y = value, group = id, color = id)) + geom_line() +  facet_grid(rows = vars(treatment)) 
 ```
 
+
+# problem 3
+
+
+
+x∼Normal[μ,σ]
+
+For each dataset, save μ̂
+ and the p-value arising from a test of H:μ=0
+ using α=0.05
+. Hint: to obtain the estimate and p-value, use broom::tidy to clean the output of t.test.
+```{r}
+sim_ms = function(n = 30, mu = 0, sigma = 5) {
+  
+  sim_data = tibble(
+    x = rnorm(n = n, mean = mu, sd = sigma),
+  )
+  
+  sim_data %>% 
+    summarize(
+      mu = mean(x),
+      sigma = sd(x)
+    )
+}
+```
+
+Run for μ=0
+```{r}
+zero_output = 
+  rerun(5000, sim_ms(30, 0, 5)) %>% 
+  bind_rows()
+```
+
+
+Re running for   μ={1,2,3,4,5,6}
+```{r}
+mu_list = 
+  list(
+    "mu_1"  = 1, 
+    "mu_2" = 2, 
+    "mu_3" = 3,  
+    "mu_4" = 4, 
+    "mu_5" = 5,
+    "mu_6" = 6
+    )
+
+six_output = vector("list", length = 6)
+
+for (i in 1:6) {
+  six_output[[i]] = rerun(5000, sim_ms(mu = mu_list[[i]])) %>% bind_rows()
+}
+```
+
