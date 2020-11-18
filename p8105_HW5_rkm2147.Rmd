@@ -6,9 +6,9 @@ output: github_document
 ---
 
 
-
 ```{r}
 library(tidyverse)
+library(patchwork)
 
 knitr::opts_chunk$set(
   fig.width = 6,
@@ -29,7 +29,6 @@ scale_fill_discrete = scale_fill_viridis_d
 
 # Problem 1
 
-
 Importing data
 
 ```{r}
@@ -38,7 +37,7 @@ homicide_df = read_csv(file = "./homicide-data.csv")
 
 **Raw data explanation**
 
-The raw homicide data frame contains the variables: `r names(homicide_df)`. There are a total of `r nrow(homicide_df)` contained within. Upon first glance it appears that we will need to tidy the variable concerning the reported data of the incident that occurred. Data collected for this frame was by The Washington Post,  it gathered information on homicides in 50 large U.S. cities
+The raw homicide data frame contains the variables: `r names(homicide_df)`. There are a total of `r nrow(homicide_df)` observations contained within. Upon first glance it appears that we will need to tidy the variable concerning the reported data of the incident that occurred. Data collected for this frame was by The Washington Post,  it gathered information on homicides in 50 large U.S. cities
 
 
 Create city_state variable & resolved variable
@@ -68,7 +67,6 @@ homicide_summary_df =
 
 
 Prop test for Baltimore, MD
-
 ```{r}
 prop.test(
   homicide_summary_df %>% 
@@ -108,9 +106,8 @@ results_df %>%
 
 # Problem 2
 
-Start with a dataframe containing all file names; the list.files function will help
 
-
+Import the data 
 ```{r}
 path_df = 
   tibble(
@@ -124,7 +121,7 @@ path_df =
 ```
 
 
-Tidy the result; manipulate file names to include control arm and subject ID, make sure weekly observations are “tidy”, and do any other tidying that’s necessary 
+Tidying the recently imported data
 
 ```{r}
 tidy_df =
@@ -151,26 +148,21 @@ path = str_replace(path, ".csv", "")
 ```
 
 
-make a spaghetti plot showing observations on each subject over time, and comment on differences between groups.
-
-need to figure out how to compare control vs treatment
+Spaghetti plot!
 ```{r}
 tidy_df %>% 
  
-  ggplot(aes( x = week, y = value, group = id, color = id)) + geom_line() +  facet_grid(rows = vars(treatment)) 
+  ggplot(aes( x = week, y = value, group = id, color = id)) + geom_line() +  facet_grid(cols = vars(treatment)) + 
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
 ```
 
-*** switch the position of the facet, to better compare the values***
-# problem 3
+We can see from the plot that when comparing the control and experiment group, the experiment group across the weeks of the study has the highest amount of values recorded. Focusing in on the control group, the values recorded relatively stayed the same over the span of 8 weeks. For the experiment group, the values increased incrementally over the course of 8 weeks.This makes sense considering the placebo effect of the control.   
 
 
+# Problem 3
 
-x∼Normal[μ,σ]
 
-For each dataset, save μ̂
- and the p-value arising from a test of H:μ=0
- using α=0.05
-. Hint: to obtain the estimate and p-value, use broom::tidy to clean the output of t.test.
+Set up the function that is to be used. 
 ```{r}
 sim_ms = function(n = 30, mu, sigma = 5) {
   
@@ -191,45 +183,24 @@ sim_ms = function(n = 30, mu, sigma = 5) {
 }
 ```
 
-Run for μ=0
+
+
+Set μ=0 Generate 5000 datasets from the model x∼Normal[μ,σ]
 ```{r}
 zero_output = 
-  rerun(50, sim_ms(30, 0, 5)) %>% 
+  rerun(5000, sim_ms(30, 0, 5)) %>% 
   bind_rows() %>% 
   select(
     estimate, p.value
   )
-  
+
+zero_output
 ```
 
 
 
+Re running our previously set function for μ={0,1,2,3,4,5,6}
 
-
-
-
-Re running for   μ={0,1,2,3,4,5,6}
-```{r}
-# don't believe this works
-mu_list = 
-  list(
-    "mu_0"  = 0, 
-    "mu_1"  = 1, 
-    "mu_2" = 2, 
-    "mu_3" = 3,  
-    "mu_4" = 4, 
-    "mu_5" = 5,
-    "mu_6" = 6
-    )
-
-six_output = vector("list", length = 7)
-
-for (i in 1:7) {
-  six_output[[i]] = rerun(5, sim_ms(mu = mu_list[[i]])) %>% bind_rows() %>%  select(estimate, p.value)
-}
-```
-
-trying maria's way
 ```{r}
 new_six = 
   tibble(
@@ -245,30 +216,10 @@ new_six =
 
 
 
-Make a plot showing the proportion of times the null was rejected (the power of the test) on the y axis and the true value of μ (1-6)
- on the x axis. Describe the association between effect size and power.
- 
- 
+Plot showing the power of the test
+
 ```{r}
-# i dont think this works...
-graph_data =
-bind_rows(six_output) %>%
-mutate(
-test_results = case_when(
-p.value < .05 ~ "reject",
-p.value >= .05 ~ "fail to reject"
-))  %>% 
-  summarize(
-    total_test = n(),
-    reject_test = sum(test_results == "reject")) %>% 
-  mutate(
-    power = (reject_test / total_test))
-     
-  
-```
- 
-```{r}
-rejection_plot = 
+power_plot = 
 new_six %>% group_by(mu) %>% 
   count(p.value < .05) %>% 
   mutate(
@@ -285,3 +236,74 @@ new_six %>% group_by(mu) %>%
  
  The association between effect size and power is visualized in the rejection_plot. We can see that as the true value of mu for the sample increases, or in this case deviates from the null value of 0, the effect size increases.  This increase in the effect size results in the increase of the power for the study.  Power is (1- Beta), the probability of avoiding a type II error. Even at a considerably small effect size, when the true value of mu is very close to the null mu value, we see that the power is just above 0.0 and is not exactly 0.  I understand this is due to the random error and chance associated with studies that were simulated.  
  
+ 
+
+Setting up data frame for samples in which null is rejected
+```{r}
+rejected_data = 
+new_six %>% 
+mutate(
+test_results = case_when(
+p.value < .05 ~ "reject",
+p.value >= .05 ~ "fail to reject"
+)) %>% 
+  filter(
+    test_results == "reject"
+  ) %>% 
+  group_by(mu)
+```
+ 
+null is rejected data plot
+```{r}
+reject_plot =
+rejected_data %>% 
+  summarize(
+    mean_reject = mean(estimate)
+  ) %>% 
+  ggplot(aes(x = mu, y = mean_reject)) + geom_smooth() + geom_point() +
+labs(
+    
+    title = "Rejected null data",
+      x = "True value of Mu",
+    y = "average estimate of μ̂
+ only in samples for which the null was rejected"
+  )
+```
+  
+ 
+ Setting up data frame for all samples 
+```{r}
+all_data = 
+new_six %>% 
+mutate(
+test_results = case_when(
+p.value < .05 ~ "reject",
+p.value >= .05 ~ "fail to reject"
+))  %>% 
+  group_by(mu)
+```
+ 
+ Plot for all of the samples
+```{r}
+all_plot = 
+all_data %>% 
+  summarize(
+    mean_all = mean(estimate)
+  ) %>% 
+  ggplot(aes(x = mu, y = mean_all)) + geom_smooth() + geom_point() +
+labs(
+    
+    title = "All data",
+      x = "True value of Mu",
+    y = "average estimate of μ̂
+ "
+  )
+```
+ 
+ Final plots!!
+```{r}
+all_plot + reject_plot
+```
+ 
+
+We see the most deviation between the average estimate of mu for all data and for the rejected null hypothesis data when the true value of mu is in the lower range (closer to the value of 0). The sample average of μ̂ across tests for which the null is rejected becomes more equal to the true value of μ as the true value increases.  
