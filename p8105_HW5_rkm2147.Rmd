@@ -160,7 +160,7 @@ tidy_df %>%
   ggplot(aes( x = week, y = value, group = id, color = id)) + geom_line() +  facet_grid(rows = vars(treatment)) 
 ```
 
-
+*** switch the position of the facet, to better compare the values***
 # problem 3
 
 
@@ -172,32 +172,48 @@ For each dataset, save μ̂
  using α=0.05
 . Hint: to obtain the estimate and p-value, use broom::tidy to clean the output of t.test.
 ```{r}
-sim_ms = function(n = 30, mu = 0, sigma = 5) {
+sim_ms = function(n = 30, mu, sigma = 5) {
   
   sim_data = tibble(
-    x = rnorm(n = n, mean = mu, sd = sigma),
+    x = rnorm(n = n, mean = mu, sd = sigma)
   )
   
   sim_data %>% 
     summarize(
       mu = mean(x),
-      sigma = sd(x)
-    )
+      sigma = sd(x))
+      
+      sim_data %>% 
+     t.test() %>% 
+    broom::tidy() %>% 
+        select(estimate, p.value)
+  
 }
 ```
 
 Run for μ=0
 ```{r}
 zero_output = 
-  rerun(5000, sim_ms(30, 0, 5)) %>% 
-  bind_rows()
+  rerun(50, sim_ms(30, 0, 5)) %>% 
+  bind_rows() %>% 
+  select(
+    estimate, p.value
+  )
+  
 ```
 
 
-Re running for   μ={1,2,3,4,5,6}
+
+
+
+
+
+Re running for   μ={0,1,2,3,4,5,6}
 ```{r}
+# don't believe this works
 mu_list = 
   list(
+    "mu_0"  = 0, 
     "mu_1"  = 1, 
     "mu_2" = 2, 
     "mu_3" = 3,  
@@ -206,10 +222,66 @@ mu_list =
     "mu_6" = 6
     )
 
-six_output = vector("list", length = 6)
+six_output = vector("list", length = 7)
 
-for (i in 1:6) {
-  six_output[[i]] = rerun(5000, sim_ms(mu = mu_list[[i]])) %>% bind_rows()
+for (i in 1:7) {
+  six_output[[i]] = rerun(5, sim_ms(mu = mu_list[[i]])) %>% bind_rows() %>%  select(estimate, p.value)
 }
 ```
 
+trying maria's way
+```{r}
+new_six = 
+  tibble(
+    mu = c(0, 1, 2, 3, 4, 5, 6)) %>% 
+      mutate(
+        output_list = map(.x = mu, ~rerun(5000, sim_ms(mu = .x))),
+        output_df = map(output_list, bind_rows)
+      ) %>% 
+      unnest(output_df) %>% 
+      select(-output_list)
+  
+```
+
+
+
+Make a plot showing the proportion of times the null was rejected (the power of the test) on the y axis and the true value of μ (1-6)
+ on the x axis. Describe the association between effect size and power.
+ 
+ 
+```{r}
+# i dont think this works...
+graph_data =
+bind_rows(six_output) %>%
+mutate(
+test_results = case_when(
+p.value < .05 ~ "reject",
+p.value >= .05 ~ "fail to reject"
+))  %>% 
+  summarize(
+    total_test = n(),
+    reject_test = sum(test_results == "reject")) %>% 
+  mutate(
+    power = (reject_test / total_test))
+     
+  
+```
+ 
+```{r}
+rejection_plot = 
+new_six %>% group_by(mu) %>% 
+  count(p.value < .05) %>% 
+  mutate(
+    power = n/sum(n)
+  ) %>% janitor::clean_names() %>% 
+  filter(p_value_0_05 == TRUE) %>% 
+  ggplot(aes(x = mu, y = power)) + geom_point() + geom_smooth() + labs(
+    
+    title = "The association between effect size and power",
+      x = "True value of Mu",
+    y = "Power"
+  )
+```
+ 
+ The association between effect size and power is visualized in the rejection_plot. We can see that as the true value of mu for the sample increases, or in this case deviates from the null value of 0, the effect size increases.  This increase in the effect size results in the increase of the power for the study.  Power is (1- Beta), the probability of avoiding a type II error. Even at a considerably small effect size, when the true value of mu is very close to the null mu value, we see that the power is just above 0.0 and is not exactly 0.  I understand this is due to the random error and chance associated with studies that were simulated.  
+ 
